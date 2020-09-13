@@ -1,0 +1,10 @@
+- path : src\main
+  outputFile : target\scala-2.12\output.md
+  tokenizer : default
+  filters :
+    includes :
+      - ^Model.*
+      - .*A$
+  display : {}
+
+      

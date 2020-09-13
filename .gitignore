@@ -1,0 +1,8 @@
+*.class
+*.log
+*.html
+.metals
+.bloop
+.ensime_cache
+.vscode/*
+.idea/*

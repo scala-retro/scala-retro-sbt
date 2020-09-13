@@ -1,0 +1,1 @@
+scalac -bootclasspath C:\Users\Waris\AppData\Local\Coursier\cache\v1\https\repo1.maven.org\maven2\org\scala-lang\scala-library\2.12.6\scala-library-2.12.6.jar -classpath D:\scala-retro-plugin-test\target\scala-2.12\classes D:\scala-retro-plugin-test\src\main\scala\test\ClassA.scala
