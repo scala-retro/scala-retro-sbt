@@ -44,13 +44,11 @@ object ScalaRetroPlugin extends AutoPlugin {
         |- path : ${(Compile / sourceDirectory).value.getPath}
         |  outputFile : ${new File(crossTarget.value, "output.md")}
         |  tokenizer : default
-        |  filters :
-        |    includes :
-        |      - *
+        |  filters : {}
         |  display : {}
       """.stripMargin
 
-    new PrintWriter("config.yaml") { write(template); close() }
+    new PrintWriter(configFileDir.value.toString) { write(template); close() }
   }
 
   private def retroTask = Def.task {
