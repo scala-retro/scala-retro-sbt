@@ -1,8 +1,10 @@
 *.class
 *.log
 *.html
+*.cache
 .metals
 .bloop
 .ensime_cache
 .vscode/*
 .idea/*
+project/target/*
