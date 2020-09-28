@@ -5,6 +5,8 @@ import sbt._
 
 import java.io.{File, PrintWriter}
 
+import com.github.acout.scalaretro.plugin.config._
+
 object ScalaRetroPlugin extends AutoPlugin {
   override val trigger: PluginTrigger = noTrigger
   override val requires: Plugins = plugins.JvmPlugin
@@ -13,11 +15,11 @@ object ScalaRetroPlugin extends AutoPlugin {
   import autoImport._
 
   override lazy val projectSettings: Seq[Setting[_]] = Seq(
-    configFileDir := target.value / "retro",
+    retroConfigFile := target.value / "retro",
     retro := retroTask.value,
     retroInit := retroInitTask.value,
     // Run Scala retro after sbt doc
-    //doc in Compile := (doc in Compile).dependsOn(retro).value,
+    retro := retro.dependsOn(compile in Compile).value,
     doc in Compile := Def.taskDyn {
       val result = (doc in Compile).value
       Def.task {
@@ -28,11 +30,7 @@ object ScalaRetroPlugin extends AutoPlugin {
     resolvers += Resolver.bintrayRepo("acout", "maven"),
     libraryDependencies ++= Seq(
       "com.github.acout" %% "scala-retro-core" % "0.1.4",
-      // https://mvnrepository.com/artifact/org.yaml/snakeyaml
-      "org.yaml" % "snakeyaml" % "1.26",
-      "io.circe" %% "circe-parser" % "0.12.0",
-      "io.circe" %% "circe-generic" % "0.12.0",
-      "io.circe" %% "circe-yaml" % "0.12.0"
+      "com.typesafe" % "config" % "1.4.0"
     )
   )
 
@@ -40,31 +38,42 @@ object ScalaRetroPlugin extends AutoPlugin {
     val log = sLog.value
 
     val template =
-      s"""# TEMPLATE FOR YAML FILE
-        |- path : ${(Compile / sourceDirectory).value.getPath}
-        |  outputFile : ${new File(crossTarget.value, "output.md")}
-        |  tokenizer : default
-        |  filters : {}
-        |  display : {}
+      s"""# TEMPLATE FOR CONFIG FILE
+         |retro {
+         |  diagrams : MyDiagram
+         |  MyDiagram {
+         |    src : "${(Compile / sourceDirectory).value.getPath.replace("\\", "/")}"
+         |    output : "${new File(crossTarget.value, "output.md").getPath.replace("\\", "/")}"
+         |  }
+         |}
       """.stripMargin
 
-    new PrintWriter(configFileDir.value.toString) { write(template); close() }
+    new PrintWriter(retroConfigFile.value.toString) { write(template); close() }
   }
 
   private def retroTask = Def.task {
     val log = sLog.value
 
-    val config = new File(configFileDir.value.toString)
+    val config = retroConfigFile.value.toString
 
-    val parsedConfig: List[DiagramConfiguration] =
-      ConfigurationReader.read(config, log) match {
-      case Some(c) => c
-      case None => DiagramConfiguration((Compile / sourceDirectory).value.getPath,
-        new File(crossTarget.value, "output.md").getPath, "default", Map.empty, Map.empty) :: Nil
-    }
+    val diagramsConfig =
+      ConfigurationParser.apply(config) match {
+        case Right(s) =>
+          log.info(s"Successfully load $config...")
+          s
+        case Left(e) =>
+          e.getStackTrace.foreach(st => log.error(st.toString))
+          log.info(
+            "Something gone wrong... Run scala retro with default parameters")
+          DiagramConfiguration(
+            "diagam",
+            (Compile / sourceDirectory).value.getPath :: Nil,
+            Some(new File(crossTarget.value, "output.md").getPath),
+            FiltersConfiguration(Nil, Nil, Nil),
+            Some("scala_2")
+          ) :: Nil
+      }
 
-    log.info(s"Successfully load $config...")
-
-    parsedConfig.foreach(dc => dc.runScalaRetro(log))
+    diagramsConfig.foreach(dc => dc.generate(log))
   }
 }
