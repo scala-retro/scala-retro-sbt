@@ -72,7 +72,7 @@ addSbtPlugin("com.github.acout" % "sbt-retro" % "0.1")
 retro {
   diagrams : MyDiagram,
   MyDiagram {
-    path : src/main/scala
+    src : src/main/scala
     output : output.md
   }
 }
