@@ -12,13 +12,33 @@ object ConfigurationParser {
     val content = """((?<!\")\+[a-zA-Z0-9]+)""".r
       .replaceAllIn(Source.fromFile(path).getLines.mkString("\n"), """\"$1\"""")
 
-    ConfigFactory
+    val config = ConfigFactory
       .parseString(content)
       .getConfig("retro")
+
+    val diagramsConfig = config.getList("diagrams").asScala.toList
+
+    val formattedDiagramConfig = ConfigFactory
+      .parseString("diagrams {\n" + diagramsConfig.zipWithIndex
+        .map { case (sco, i) => s"D$i ${sco.render()}" }
+        .mkString("\n") + "}")
+      .getConfig("diagrams")
       .entrySet()
       .asScala
       .map(e => e.getKey -> e.getValue.render())
       .toMap
+
+    config
+      .entrySet()
+      .asScala
+      .map(e => e.getKey -> e.getValue.render())
+      .toMap + ("diagrams" -> ConfigFactory
+      .parseString(
+        "indices :" + diagramsConfig.indices
+          .map("D" + _)
+          .mkString("[", ",", "]"))
+      .getList("indices")
+      .render()) ++ formattedDiagramConfig
   }
 
   private def formatConfig(config: Map[String, String]): RetroConfig = {
@@ -38,7 +58,6 @@ object ConfigurationParser {
     val (s, g) = (retroConfig - "diagrams").partition {
       case (k, _) => retroConfig("diagrams").contains(k.split('.').head)
     }
-
     val plusMinus = """[\+-]"""
 
     s.foldLeft(
@@ -55,7 +74,6 @@ object ConfigurationParser {
           val key = k.replaceAll(plusMinus, "")
           acc + ((key, acc(key).union(v)))
         case (k, v) if k.contains("-") || k.contains("+") =>
-          println()
           acc + ((k.replaceAll(plusMinus, ""), v))
         case t => acc + t
     }) + (("diagrams", retroConfig("diagrams")))
@@ -77,10 +95,12 @@ object ConfigurationParser {
           retroConfig.get(s"$name.tokenizer").map(_.last)
       ))
 
-  def apply(path: String): Either[java.lang.Throwable, Seq[DiagramConfiguration]] =
+  def apply(
+      path: String): Either[java.lang.Throwable, Seq[DiagramConfiguration]] =
     try {
-      Right(getDiagramsConfiguration(
-        combineGeneralWithSpecifics(formatConfig(read(path)))))
+      Right(
+        getDiagramsConfiguration(
+          combineGeneralWithSpecifics(formatConfig(read(path)))))
     } catch {
       case ex => Left(ex)
     }
