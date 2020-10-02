@@ -1,14 +1,21 @@
 package com.github.acout.scalaretro.plugin.config
 
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory, ConfigObject, ConfigValue}
 
 import scala.io.Source
+import com.typesafe.config.ConfigException.WrongType
+
 import collection.JavaConverters._
 
 object ConfigurationParser {
   type RetroConfig = Map[String, Vector[String]]
 
   private def read(path: String): Map[String, String] = {
+    def config2map(
+        co: Config,
+        f: java.util.Map.Entry[String, ConfigValue] => (String, String))
+      : Map[String, String] = co.entrySet().asScala.map(e => f(e)).toMap
+
     val content = """((?<!\")\+[a-zA-Z0-9]+)""".r
       .replaceAllIn(Source.fromFile(path).getLines.mkString("\n"), """\"$1\"""")
 
@@ -16,29 +23,22 @@ object ConfigurationParser {
       .parseString(content)
       .getConfig("retro")
 
-    val diagramsConfig = config.getList("diagrams").asScala.toList
+    val diagrams: List[ConfigObject] = try {
+      config.getObjectList("diagrams").asScala.toList
+    } catch {
+      case _: WrongType => config.getObject("diagrams") :: Nil
+    }
 
-    val formattedDiagramConfig = ConfigFactory
-      .parseString("diagrams {\n" + diagramsConfig.zipWithIndex
-        .map { case (sco, i) => s"D$i ${sco.render()}" }
-        .mkString("\n") + "}")
-      .getConfig("diagrams")
-      .entrySet()
-      .asScala
-      .map(e => e.getKey -> e.getValue.render())
-      .toMap
-
-    config
-      .entrySet()
-      .asScala
-      .map(e => e.getKey -> e.getValue.render())
-      .toMap + ("diagrams" -> ConfigFactory
+    config2map(config, e => e.getKey -> e.getValue.render()) + ("diagrams" -> ConfigFactory
       .parseString(
-        "indices :" + diagramsConfig.indices
-          .map("D" + _)
-          .mkString("[", ",", "]"))
-      .getList("indices")
-      .render()) ++ formattedDiagramConfig
+        "ids : " + diagrams.indices
+          .map(i => s"D$i")
+          .mkString("[", ", ", "]"))
+      .getList("ids")
+      .render()) ++ diagrams.zipWithIndex.flatMap {
+      case (o, i) =>
+        config2map(o.toConfig, e => s"D$i." + e.getKey -> e.getValue.render())
+    }.toMap
   }
 
   private def formatConfig(config: Map[String, String]): RetroConfig = {
@@ -102,6 +102,6 @@ object ConfigurationParser {
         getDiagramsConfiguration(
           combineGeneralWithSpecifics(formatConfig(read(path)))))
     } catch {
-      case ex => Left(ex)
+      case ex: Exception => Left(ex)
     }
 }

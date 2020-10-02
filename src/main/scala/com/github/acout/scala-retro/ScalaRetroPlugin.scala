@@ -40,8 +40,7 @@ object ScalaRetroPlugin extends AutoPlugin {
     val template =
       s"""# TEMPLATE FOR CONFIG FILE
          |retro {
-         |  diagrams : MyDiagram
-         |  MyDiagram {
+         |  diagrams {
          |    src : "${(Compile / sourceDirectory).value.getPath.replace("\\", "/")}"
          |    output : "${new File(crossTarget.value, "output.md").getPath.replace("\\", "/")}"
          |  }
