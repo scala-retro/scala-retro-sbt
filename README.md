@@ -1,5 +1,7 @@
 # scala-retro-plugin
 
+A sbt plugin for [Scala Retro](https://github.com/acout/scala-retro), a package that allows to generate UML Class Diagrams from source code.
+
 ## How to use 
 
 In `build.sbt`:
@@ -41,7 +43,7 @@ addSbtPlugin("com.github.acout" % "sbt-retro" % "0.1")
 
 ### Options
 
-- `diagrams`: define diagrams by any name, so that the interpreter can distinguish between them
+- `diagrams`: Array that contains parameters of diagrams.
 -  `src` : Sources of Scala files
 - `tokenizer`: determines the tokenizer to use, by default "scala_2".
 - `output` : path of generated markdown file
@@ -61,7 +63,7 @@ addSbtPlugin("com.github.acout" % "sbt-retro" % "0.1")
 
 - `hide` : Element to hide on the diagram, can be fields, methods or dependencies 
 - `show` : Element to show on the diagram, can be fields, methods or dependencies 
--  Add a prefix `^` for intersections?
+- Add a prefix `^` for intersections?
 - Add wildcard support
 
 ### Examples
@@ -70,11 +72,12 @@ addSbtPlugin("com.github.acout" % "sbt-retro" % "0.1")
 
 ```hocon
 retro {
-  diagrams : MyDiagram,
-  MyDiagram {
-    src : src/main/scala
-    output : output.md
-  }
+  diagrams : [
+    {
+      src : src/main/scala
+      output : output.md
+    }
+  ]
 }
 ```
 
@@ -82,26 +85,24 @@ retro {
 
 ```hocon
 retro {
-  diagrams : [A, B]
   filters {
     includes : ["regex1", "regex2"]
     excludes : ["regex4", "regex3", "regex2"]
   }
   tokenizer : "scala_2"
-  A {
+  diagrams : [{
     src : path/to/scala/file1
     output : xx1.md
     filters {
       -excludes : "regex4"
     }
-  }
-  B {
+  }, {
     src : [path/to/scala/file2, path/to/scala/file3]
     output : xx2.md
     filters {
       +includes : ["regex10"]
       contains : ["foo", "bar"]
     }
-  }
+  }]
 }
 ```

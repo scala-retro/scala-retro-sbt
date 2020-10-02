@@ -1,24 +1,44 @@
 package com.github.acout.scalaretro.plugin.config
 
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory, ConfigObject, ConfigValue}
 
 import scala.io.Source
+import com.typesafe.config.ConfigException.WrongType
+
 import collection.JavaConverters._
 
 object ConfigurationParser {
   type RetroConfig = Map[String, Vector[String]]
 
   private def read(path: String): Map[String, String] = {
+    def config2map(
+        co: Config,
+        f: java.util.Map.Entry[String, ConfigValue] => (String, String))
+      : Map[String, String] = co.entrySet().asScala.map(e => f(e)).toMap
+
     val content = """((?<!\")\+[a-zA-Z0-9]+)""".r
       .replaceAllIn(Source.fromFile(path).getLines.mkString("\n"), """\"$1\"""")
 
-    ConfigFactory
+    val config = ConfigFactory
       .parseString(content)
       .getConfig("retro")
-      .entrySet()
-      .asScala
-      .map(e => e.getKey -> e.getValue.render())
-      .toMap
+
+    val diagrams: List[ConfigObject] = try {
+      config.getObjectList("diagrams").asScala.toList
+    } catch {
+      case _: WrongType => config.getObject("diagrams") :: Nil
+    }
+
+    config2map(config, e => e.getKey -> e.getValue.render()) + ("diagrams" -> ConfigFactory
+      .parseString(
+        "ids : " + diagrams.indices
+          .map(i => s"D$i")
+          .mkString("[", ", ", "]"))
+      .getList("ids")
+      .render()) ++ diagrams.zipWithIndex.flatMap {
+      case (o, i) =>
+        config2map(o.toConfig, e => s"D$i." + e.getKey -> e.getValue.render())
+    }.toMap
   }
 
   private def formatConfig(config: Map[String, String]): RetroConfig = {
@@ -38,7 +58,6 @@ object ConfigurationParser {
     val (s, g) = (retroConfig - "diagrams").partition {
       case (k, _) => retroConfig("diagrams").contains(k.split('.').head)
     }
-
     val plusMinus = """[\+-]"""
 
     s.foldLeft(
@@ -55,7 +74,6 @@ object ConfigurationParser {
           val key = k.replaceAll(plusMinus, "")
           acc + ((key, acc(key).union(v)))
         case (k, v) if k.contains("-") || k.contains("+") =>
-          println()
           acc + ((k.replaceAll(plusMinus, ""), v))
         case t => acc + t
     }) + (("diagrams", retroConfig("diagrams")))
@@ -77,11 +95,13 @@ object ConfigurationParser {
           retroConfig.get(s"$name.tokenizer").map(_.last)
       ))
 
-  def apply(path: String): Either[java.lang.Throwable, Seq[DiagramConfiguration]] =
+  def apply(
+      path: String): Either[java.lang.Throwable, Seq[DiagramConfiguration]] =
     try {
-      Right(getDiagramsConfiguration(
-        combineGeneralWithSpecifics(formatConfig(read(path)))))
+      Right(
+        getDiagramsConfiguration(
+          combineGeneralWithSpecifics(formatConfig(read(path)))))
     } catch {
-      case ex => Left(ex)
+      case ex: Exception => Left(ex)
     }
 }
