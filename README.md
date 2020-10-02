@@ -68,7 +68,7 @@ addSbtPlugin("com.github.acout" % "sbt-retro" % "0.1")
 
 #### Minimal example
 
-```
+```hocon
 retro {
   diagrams : MyDiagram,
   MyDiagram {
@@ -80,7 +80,7 @@ retro {
 
 #### Complete example
 
-```
+```hocon
 retro {
   diagrams : [A, B]
   filters {
