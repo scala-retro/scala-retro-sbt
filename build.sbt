@@ -5,5 +5,5 @@ lazy val root = (project in file("."))
   .settings(
     scalaVersion := "2.12.6",
     sbtVersion := "0.13.11",
-    retroConfigFile := file("target/config.conf"),
+    retroConfigFile := file("target/retro.conf"),
   )
